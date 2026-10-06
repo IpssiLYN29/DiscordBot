@@ -1,5 +1,6 @@
 package fr.ipssi.discordbot.command;
 
+import fr.ipssi.discordbot.Main;
 import fr.ipssi.discordbot.model.Meetup;
 import fr.ipssi.discordbot.model.MeetupStatus;
 import fr.ipssi.discordbot.repository.MeetupRepository;
@@ -96,6 +97,7 @@ public final class MeetupCommand implements Command {
         channel.sendMessageEmbeds(meetupService.render(meetup)).setComponents(meetupService.buttons(meetup)).queue(
                 message -> {
                     meetupRepository.attachMessage(meetup.id(), channel.getIdLong(), message.getIdLong());
+                    Main.getLogger().info("New event has been created (#" + meetup.id() + ")");
                     event.reply("Événement #" + meetup.id() + " publié.").setEphemeral(true).queue();
                 },
                 error -> {
