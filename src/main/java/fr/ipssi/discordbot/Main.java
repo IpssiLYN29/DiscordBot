@@ -133,5 +133,10 @@ public final class Main {
             taskScheduler.stop();
             jda.shutdown();
         }));
+
+
+    }
+    public static Logger getLogger() {
+        return LOGGER;
     }
 }

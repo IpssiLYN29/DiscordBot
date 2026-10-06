@@ -1,5 +1,6 @@
 package fr.ipssi.discordbot.command;
 
+import fr.ipssi.discordbot.Main;
 import fr.ipssi.discordbot.model.Poll;
 import fr.ipssi.discordbot.repository.PollRepository;
 import fr.ipssi.discordbot.service.PollService;
@@ -88,6 +89,7 @@ public final class PollCommand implements Command {
         channel.sendMessageEmbeds(pollService.render(poll)).setComponents(pollService.buttons(poll)).queue(
                 message -> {
                     pollRepository.attachMessage(poll.id(), channel.getIdLong(), message.getIdLong());
+                    Main.getLogger().info("New poll has been created (#" + poll.id() + ")");
                     event.reply("Sondage #" + poll.id() + " publié.").setEphemeral(true).queue();
                 },
                 error -> {
