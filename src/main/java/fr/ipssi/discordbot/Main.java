@@ -9,6 +9,8 @@ import fr.ipssi.discordbot.command.DeadlinesCommand;
 import fr.ipssi.discordbot.command.MeetupCommand;
 import fr.ipssi.discordbot.command.MuteCommand;
 import fr.ipssi.discordbot.command.PingCommand;
+import fr.ipssi.discordbot.command.QuestionCommand;
+import fr.ipssi.discordbot.command.ResolvedCommand;
 import fr.ipssi.discordbot.command.PlanningCommand;
 import fr.ipssi.discordbot.command.PollCommand;
 import fr.ipssi.discordbot.command.ResourceCommand;
@@ -23,7 +25,10 @@ import fr.ipssi.discordbot.listener.PollListener;
 import fr.ipssi.discordbot.listener.RoleSelectionListener;
 import fr.ipssi.discordbot.listener.RulesListener;
 import fr.ipssi.discordbot.repository.DeadlineRepository;
+import fr.ipssi.discordbot.repository.HelpRepository;
 import fr.ipssi.discordbot.repository.MeetupRepository;
+import fr.ipssi.discordbot.repository.PromoRepository;
+import fr.ipssi.discordbot.repository.SubjectRepository;
 import fr.ipssi.discordbot.repository.PollRepository;
 import fr.ipssi.discordbot.repository.ResourceRepository;
 import fr.ipssi.discordbot.repository.ScheduleRepository;
@@ -31,7 +36,10 @@ import fr.ipssi.discordbot.repository.SettingsRepository;
 import fr.ipssi.discordbot.repository.WarnRepository;
 import fr.ipssi.discordbot.repository.sqlite.SqliteDatabase;
 import fr.ipssi.discordbot.repository.sqlite.SqliteDeadlineRepository;
+import fr.ipssi.discordbot.repository.sqlite.SqliteHelpRepository;
 import fr.ipssi.discordbot.repository.sqlite.SqliteMeetupRepository;
+import fr.ipssi.discordbot.repository.sqlite.SqlitePromoRepository;
+import fr.ipssi.discordbot.repository.sqlite.SqliteSubjectRepository;
 import fr.ipssi.discordbot.repository.sqlite.SqlitePollRepository;
 import fr.ipssi.discordbot.repository.sqlite.SqliteResourceRepository;
 import fr.ipssi.discordbot.repository.sqlite.SqliteScheduleRepository;
@@ -41,6 +49,9 @@ import fr.ipssi.discordbot.service.LogService;
 import fr.ipssi.discordbot.service.DeadlineReminderService;
 import fr.ipssi.discordbot.service.MeetupService;
 import fr.ipssi.discordbot.service.PlanningRecapService;
+import fr.ipssi.discordbot.service.PlanningTargetService;
+import fr.ipssi.discordbot.service.RoleMenuService;
+import fr.ipssi.discordbot.service.ScheduleChangeService;
 import fr.ipssi.discordbot.service.PollService;
 import fr.ipssi.discordbot.service.ScheduleReminderService;
 import fr.ipssi.discordbot.service.SettingsService;
@@ -74,16 +85,24 @@ public final class Main {
         PollRepository pollRepository = new SqlitePollRepository(database);
         MeetupRepository meetupRepository = new SqliteMeetupRepository(database);
         ResourceRepository resourceRepository = new SqliteResourceRepository(database);
+        PromoRepository promoRepository = new SqlitePromoRepository(database);
+        SubjectRepository subjectRepository = new SqliteSubjectRepository(database);
+        HelpRepository helpRepository = new SqliteHelpRepository(database);
 
         SettingsService settings = new SettingsService(settingsRepository);
         LogService logService = new LogService(settings);
-        PlanningRecapService recapService = new PlanningRecapService(scheduleRepository, settings);
+        PlanningTargetService planningTargets = new PlanningTargetService(promoRepository, settings);
+        PlanningRecapService recapService = new PlanningRecapService(scheduleRepository, planningTargets);
+        ScheduleChangeService changeService = new ScheduleChangeService(planningTargets);
+        RoleMenuService roleMenu = new RoleMenuService(settings, promoRepository, subjectRepository);
         PollService pollService = new PollService(pollRepository);
         MeetupService meetupService = new MeetupService(meetupRepository);
 
         CommandManager commandManager = new CommandManager();
         commandManager.register(new PingCommand());
-        commandManager.register(new ConfigCommand(settings));
+        commandManager.register(new ConfigCommand(settings, promoRepository, subjectRepository));
+        commandManager.register(new QuestionCommand(settings, subjectRepository, helpRepository));
+        commandManager.register(new ResolvedCommand(helpRepository));
         commandManager.register(new ClearCommand(logService));
         commandManager.register(new WarnCommand(warnRepository, logService));
         commandManager.register(new WarnsCommand(warnRepository));
@@ -91,13 +110,13 @@ public final class Main {
         commandManager.register(new UnmuteCommand(logService));
         commandManager.register(new DeadlineCommand(deadlineRepository));
         commandManager.register(new DeadlinesCommand(deadlineRepository));
-        commandManager.register(new PlanningCommand(scheduleRepository, recapService));
+        commandManager.register(new PlanningCommand(scheduleRepository, recapService, changeService));
         commandManager.register(new PollCommand(pollRepository, pollService));
         commandManager.register(new MeetupCommand(meetupRepository, meetupService));
         commandManager.register(new ResourceCommand(resourceRepository));
         commandManager.register(new AnnounceCommand());
         commandManager.register(new RulesPanelCommand());
-        commandManager.register(new RolesPanelCommand(settings));
+        commandManager.register(new RolesPanelCommand(roleMenu));
 
         JDA jda = JDABuilder.createLight(config.token(), GatewayIntent.GUILD_MEMBERS)
                 .setActivity(Activity.watching("IPSSI Lyon"))
@@ -105,7 +124,7 @@ public final class Main {
                         commandManager,
                         new MemberListener(settings, logService),
                         new RulesListener(settings),
-                        new RoleSelectionListener(settings),
+                        new RoleSelectionListener(roleMenu),
                         new PollListener(pollRepository, pollService),
                         new MeetupListener(meetupRepository, meetupService))
                 .build()
@@ -115,7 +134,7 @@ public final class Main {
 
         TaskScheduler taskScheduler = new TaskScheduler();
         taskScheduler.schedule(new DeadlineReminderService(jda, deadlineRepository, settings), REMINDER_CHECK_PERIOD);
-        ScheduleReminderService scheduleReminders = new ScheduleReminderService(jda, scheduleRepository, settings);
+        ScheduleReminderService scheduleReminders = new ScheduleReminderService(jda, scheduleRepository, planningTargets);
         taskScheduler.schedule(scheduleReminders, REMINDER_CHECK_PERIOD);
         taskScheduler.schedule(() -> recapService.refreshOutdated(jda), REMINDER_CHECK_PERIOD);
         taskScheduler.schedule(() -> pollService.closeDue(jda), REMINDER_CHECK_PERIOD);

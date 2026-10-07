@@ -3,6 +3,7 @@ package fr.ipssi.discordbot.command;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.events.guild.GuildJoinEvent;
+import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
@@ -39,6 +40,14 @@ public final class CommandManager extends ListenerAdapter {
         Command command = commands.get(event.getName());
         if (command != null) {
             command.execute(event);
+        }
+    }
+
+    @Override
+    public void onCommandAutoCompleteInteraction(@NotNull CommandAutoCompleteInteractionEvent event) {
+        Command command = commands.get(event.getName());
+        if (command != null) {
+            command.autocomplete(event);
         }
     }
 

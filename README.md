@@ -26,12 +26,22 @@ On PowerShell: `$env:DISCORD_TOKEN = "..."` before `java -jar`.
 
 ## Class reminders
 
-1. `/config planning-channel` and `/config planning-role`: the role is optional for members and appears in the `/roles-panel` menu.
+1. Declare each promo with `/config promo-set code:LYN channel:#planning-lyn role:@rappels-lyn` (same for `BDX`). The code must match the `[LYN]` / `[BDX]` tags of the calendar descriptions. The role is optional for members and appears in the `/roles-panel` menu.
+   Without any promo, `/config planning-channel` and `/config planning-role` define a single planning for everyone.
 2. `/planning import` with the `.ics` file: re-run it whenever the school updates the calendar. Existing reminders already sent are kept.
-3. The bot posts a summary about 30 minutes before each class and pings the role.
-4. At startup the bot **deletes every message of the planning channel** and posts a pinned recap of the current week (the next week on Saturday and Sunday). The recap is updated when the week changes and after each import. The bot needs Manage Messages and Read Message History in that channel, which should be dedicated to the planning.
+3. The bot posts a summary about 30 minutes before each class in the channel of every promo concerned, and pings its role. A class tagged for one promo only is not sent to the other; a class without tags goes to all.
+4. At startup the bot **deletes every message of each planning channel** and posts a pinned recap of the current week (the next week on Saturday and Sunday). The recap is updated when the week changes and after each import. The bot needs Manage Messages and Read Message History in these channels, which should be dedicated to the planning.
+5. When an import cancels, moves or edits an upcoming class (time, teacher, room, title, promos) or adds one, the bot posts the changes in the planning channel of the promos concerned. The first import never raises alerts.
 
 Recurring events (`RRULE`) and all-day events are not supported.
+
+## Help threads
+
+1. `/config help-channel` sets the channel where threads are created, and `/config subject-add name:Algorithmique role:@algo` declares each subject (its role also appears in the `/roles-panel` menu).
+2. `/question` (subject with autocompletion, title, optional details) opens a public thread, pings the subject role and adds the author.
+3. `/resolu` in the thread, by its author or a moderator, renames it `[Résolu] ...` and archives it.
+
+The bot needs Create Public Threads, Send Messages in Threads and Manage Threads in the help channel.
 
 ## Persistence
 
@@ -44,7 +54,8 @@ implementations of the interfaces in a new package (e.g. `repository.mongo`) and
 | Command | Permission | Description |
 |---|---|---|
 | `/ping` | everyone | Bot latency |
-| `/config` | administrator | Welcome, logs and deadline channels, member role, selectable roles, `show` |
+| `/config` | administrator | Channels (welcome, logs, deadlines, help), promos, subjects, member role, selectable roles, `show` |
+| `/question`, `/resolu` | everyone | Ask for help in a dedicated thread, close it once solved |
 | `/rules-panel` | administrator | Post the rules (`src/main/resources/rules.txt`) with an accept button |
 | `/roles-panel` | administrator | Post the role selection menu |
 | `/announce` | manage messages | Publish an announcement, with an optional role mention |
@@ -53,8 +64,8 @@ implementations of the interfaces in a new package (e.g. `repository.mongo`) and
 | `/deadlines` | everyone | Show the upcoming deadlines |
 | `/poll create` | everyone | Poll with 2 to 5 options and an optional automatic closing (hours). One vote per person, click again to remove it |
 | `/poll close` | author or manage messages | Close a poll and freeze its results |
-| `/event create` | everyone | Organize an outing: title, date (`JJ/MM/AAAA HH:mm`), optional place and description. Members answer with "Je peux" / "Je peux pas" buttons |
-| *(automatic)* | | One hour before an event, the bot replies to it and pings the organizer and everyone who answered "Je peux" |
+| `/event create` | everyone | Organize an outing: title, date (`JJ/MM/AAAA HH:mm`), optional place and description. Members answer with "Je peux", "Peut-être" or "Je peux pas" |
+| *(automatic)* | | "Me rappeler" button of an event: one hour before it starts, the bot replies to the event and pings only the members who asked for it |
 | `/event cancel`, `/event list` | organizer or manage messages / everyone | Cancel an event, list the upcoming ones |
 | `/resource add` | everyone | Share a link with a title, up to 5 tags and a description. Duplicate links are refused |
 | `/resource search` | everyone | Find resources by words and/or tag (latest first) |

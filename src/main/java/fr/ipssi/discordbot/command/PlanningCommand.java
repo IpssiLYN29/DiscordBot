@@ -4,6 +4,8 @@ import fr.ipssi.discordbot.ics.IcsParser;
 import fr.ipssi.discordbot.model.ScheduleEvent;
 import fr.ipssi.discordbot.repository.ScheduleRepository;
 import fr.ipssi.discordbot.service.PlanningRecapService;
+import fr.ipssi.discordbot.service.ScheduleChangeService;
+import fr.ipssi.discordbot.service.ScheduleDiff;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
@@ -31,10 +33,15 @@ public final class PlanningCommand implements Command {
 
     private final ScheduleRepository scheduleRepository;
     private final PlanningRecapService recapService;
+    private final ScheduleChangeService changeService;
 
-    public PlanningCommand(ScheduleRepository scheduleRepository, PlanningRecapService recapService) {
+    public PlanningCommand(
+            ScheduleRepository scheduleRepository,
+            PlanningRecapService recapService,
+            ScheduleChangeService changeService) {
         this.scheduleRepository = scheduleRepository;
         this.recapService = recapService;
+        this.changeService = changeService;
     }
 
     @Override
@@ -79,12 +86,23 @@ public final class PlanningCommand implements Command {
             return;
         }
 
+        List<ScheduleEvent> before = scheduleRepository.findAll(guildId);
         scheduleRepository.replaceAll(guildId, events);
+
+        ScheduleDiff diff = ScheduleDiff.compute(before, events, Instant.now());
+        changeService.announce(event.getGuild(), diff);
         recapService.refresh(event.getGuild());
 
         Instant first = events.stream().map(ScheduleEvent::startsAt).min(Comparator.naturalOrder()).orElseThrow();
         Instant last = events.stream().map(ScheduleEvent::startsAt).max(Comparator.naturalOrder()).orElseThrow();
-        event.getHook().sendMessage("%d cours importés, du <t:%d:D> au <t:%d:D>."
-                .formatted(events.size(), first.getEpochSecond(), last.getEpochSecond())).queue();
+        event.getHook().sendMessage("%d cours importés, du <t:%d:D> au <t:%d:D>. %s".formatted(
+                events.size(), first.getEpochSecond(), last.getEpochSecond(), describe(diff))).queue();
+    }
+
+    private static String describe(ScheduleDiff diff) {
+        return diff.isEmpty()
+                ? "Aucun changement à signaler."
+                : "Changements signalés : %d annulé(s), %d modifié(s), %d ajouté(s)."
+                        .formatted(diff.removed().size(), diff.changed().size(), diff.added().size());
     }
 }

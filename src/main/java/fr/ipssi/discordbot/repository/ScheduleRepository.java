@@ -4,7 +4,6 @@ import fr.ipssi.discordbot.model.ScheduleEvent;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 
 public interface ScheduleRepository {
 
@@ -14,7 +13,7 @@ public interface ScheduleRepository {
 
     List<ScheduleEvent> findStartingBetween(long guildId, Instant from, Instant until);
 
-    Optional<ScheduleEvent> findNext(long guildId, Instant after);
+    List<ScheduleEvent> findAll(long guildId);
 
     void markReminded(long guildId, String uid);
 }

@@ -10,24 +10,29 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 public final class SqliteScheduleRepository implements ScheduleRepository {
 
+    private static final String PROMO_SEPARATOR = ",";
+
     private static final String SELECT_UIDS = "SELECT uid FROM schedule_events WHERE guild_id = ?";
     private static final String UPSERT = """
-            INSERT INTO schedule_events (guild_id, uid, title, teacher, location, start_at, end_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO schedule_events (guild_id, uid, title, teacher, location, start_at, end_at, promos)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT (guild_id, uid) DO UPDATE SET
                 reminded = CASE WHEN start_at <> excluded.start_at THEN 0 ELSE reminded END,
                 title = excluded.title,
                 teacher = excluded.teacher,
                 location = excluded.location,
                 start_at = excluded.start_at,
-                end_at = excluded.end_at
+                end_at = excluded.end_at,
+                promos = excluded.promos
             """;
     private static final String DELETE = "DELETE FROM schedule_events WHERE guild_id = ? AND uid = ?";
     private static final String SELECT_PENDING = """
@@ -36,9 +41,7 @@ public final class SqliteScheduleRepository implements ScheduleRepository {
     private static final String SELECT_BETWEEN = """
             SELECT * FROM schedule_events WHERE guild_id = ? AND start_at >= ? AND start_at < ? ORDER BY start_at ASC
             """;
-    private static final String SELECT_NEXT = """
-            SELECT * FROM schedule_events WHERE guild_id = ? AND start_at > ? ORDER BY start_at ASC LIMIT 1
-            """;
+    private static final String SELECT_ALL = "SELECT * FROM schedule_events WHERE guild_id = ? ORDER BY start_at ASC";
     private static final String MARK_REMINDED = "UPDATE schedule_events SET reminded = 1 WHERE guild_id = ? AND uid = ?";
 
     private final SqliteDatabase database;
@@ -89,14 +92,13 @@ public final class SqliteScheduleRepository implements ScheduleRepository {
     }
 
     @Override
-    public Optional<ScheduleEvent> findNext(long guildId, Instant after) {
+    public List<ScheduleEvent> findAll(long guildId) {
         try (Connection connection = database.connect();
-             PreparedStatement statement = connection.prepareStatement(SELECT_NEXT)) {
+             PreparedStatement statement = connection.prepareStatement(SELECT_ALL)) {
             statement.setLong(1, guildId);
-            statement.setLong(2, after.toEpochMilli());
-            return readAll(statement).stream().findFirst();
+            return readAll(statement);
         } catch (SQLException e) {
-            throw new RepositoryException("Failed to load the next event", e);
+            throw new RepositoryException("Failed to load the schedule", e);
         }
     }
 
@@ -124,6 +126,7 @@ public final class SqliteScheduleRepository implements ScheduleRepository {
                 upsert.setString(5, event.location());
                 upsert.setLong(6, event.startsAt().toEpochMilli());
                 upsert.setLong(7, event.endsAt().toEpochMilli());
+                upsert.setString(8, encodePromos(event.promos()));
                 upsert.addBatch();
                 staleUids.remove(event.uid());
             }
@@ -164,9 +167,20 @@ public final class SqliteScheduleRepository implements ScheduleRepository {
                         rows.getString("teacher"),
                         rows.getString("location"),
                         Instant.ofEpochMilli(rows.getLong("start_at")),
-                        Instant.ofEpochMilli(rows.getLong("end_at"))));
+                        Instant.ofEpochMilli(rows.getLong("end_at")),
+                        decodePromos(rows.getString("promos"))));
             }
         }
         return events;
+    }
+
+    private static String encodePromos(Set<String> promos) {
+        return promos.isEmpty() ? "" : PROMO_SEPARATOR + String.join(PROMO_SEPARATOR, promos) + PROMO_SEPARATOR;
+    }
+
+    private static Set<String> decodePromos(String raw) {
+        return Arrays.stream(raw.split(PROMO_SEPARATOR))
+                .filter(code -> !code.isEmpty())
+                .collect(Collectors.toCollection(TreeSet::new));
     }
 }

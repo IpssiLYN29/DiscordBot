@@ -1,6 +1,6 @@
 package fr.ipssi.discordbot.listener;
 
-import fr.ipssi.discordbot.service.SettingsService;
+import fr.ipssi.discordbot.service.RoleMenuService;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
@@ -16,10 +16,10 @@ public final class RoleSelectionListener extends ListenerAdapter {
 
     public static final String SELECT_MENU_ID = "roles:select";
 
-    private final SettingsService settings;
+    private final RoleMenuService roleMenu;
 
-    public RoleSelectionListener(SettingsService settings) {
-        this.settings = settings;
+    public RoleSelectionListener(RoleMenuService roleMenu) {
+        this.roleMenu = roleMenu;
     }
 
     @Override
@@ -35,7 +35,7 @@ public final class RoleSelectionListener extends ListenerAdapter {
         }
 
         Set<String> selectedIds = Set.copyOf(event.getValues());
-        List<Role> selectableRoles = settings.menuRoleIds(guild.getIdLong()).stream()
+        List<Role> selectableRoles = roleMenu.menuRoleIds(guild.getIdLong()).stream()
                 .map(guild::getRoleById)
                 .filter(Objects::nonNull)
                 .toList();

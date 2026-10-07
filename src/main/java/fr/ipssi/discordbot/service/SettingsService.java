@@ -31,6 +31,10 @@ public final class SettingsService {
         return findId(guildId, SettingKey.DEADLINE_CHANNEL);
     }
 
+    public Optional<Long> helpChannelId(long guildId) {
+        return findId(guildId, SettingKey.HELP_CHANNEL);
+    }
+
     public Optional<Long> planningChannelId(long guildId) {
         return findId(guildId, SettingKey.PLANNING_CHANNEL);
     }
@@ -50,12 +54,6 @@ public final class SettingsService {
                         .map(Long::parseLong)
                         .collect(Collectors.toCollection(LinkedHashSet::new)))
                 .orElseGet(LinkedHashSet::new);
-    }
-
-    public Set<Long> menuRoleIds(long guildId) {
-        Set<Long> roleIds = selectableRoleIds(guildId);
-        planningRoleId(guildId).ifPresent(roleIds::add);
-        return roleIds;
     }
 
     public void setId(long guildId, SettingKey key, long id) {

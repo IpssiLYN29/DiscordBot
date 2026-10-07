@@ -90,9 +90,6 @@ public final class MeetupCommand implements Command {
                 startsAt,
                 event.getUser().getIdLong());
         Meetup meetup = draft.withId(meetupRepository.create(draft));
-        if (!Instant.now().isBefore(meetupService.reminderTime(meetup))) {
-            meetupRepository.markReminded(meetup.id());
-        }
 
         channel.sendMessageEmbeds(meetupService.render(meetup)).setComponents(meetupService.buttons(meetup)).queue(
                 message -> {

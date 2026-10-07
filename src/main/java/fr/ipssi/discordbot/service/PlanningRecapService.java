@@ -36,16 +36,16 @@ public final class PlanningRecapService {
         }
     }
 
-    private record Recap(long channelId, long messageId, LocalDate weekStart) {
+    private record Recap(long guildId, long messageId, LocalDate weekStart) {
     }
 
     private final ScheduleRepository scheduleRepository;
-    private final SettingsService settings;
-    private final Map<Long, Recap> recaps = new ConcurrentHashMap<>();
+    private final PlanningTargetService targets;
+    private final Map<Long, Recap> recapsByChannel = new ConcurrentHashMap<>();
 
-    public PlanningRecapService(ScheduleRepository scheduleRepository, SettingsService settings) {
+    public PlanningRecapService(ScheduleRepository scheduleRepository, PlanningTargetService targets) {
         this.scheduleRepository = scheduleRepository;
-        this.settings = settings;
+        this.targets = targets;
     }
 
     public void resetAll(JDA jda) {
@@ -53,60 +53,72 @@ public final class PlanningRecapService {
     }
 
     public void reset(Guild guild) {
-        TextChannel channel = planningChannel(guild);
-        if (channel == null) {
-            return;
-        }
-        recaps.remove(guild.getIdLong());
-
-        channel.getIterableHistory().takeWhileAsync(message -> true)
-                .thenCompose(messages -> CompletableFuture.allOf(
-                        channel.purgeMessages(messages).toArray(CompletableFuture[]::new)))
-                .thenRun(() -> post(guild, channel))
-                .exceptionally(error -> {
-                    LOGGER.error("Failed to reset the planning channel of guild {}", guild.getId(), error);
-                    return null;
-                });
+        targets.targets(guild.getIdLong()).forEach(target -> reset(guild, target));
     }
 
     public void refresh(Guild guild) {
-        Recap recap = recaps.get(guild.getIdLong());
-        if (recap == null) {
-            reset(guild);
-            return;
-        }
-        TextChannel channel = guild.getTextChannelById(recap.channelId());
-        if (channel == null) {
-            recaps.remove(guild.getIdLong());
-            return;
-        }
-
-        Week week = currentWeek();
-        channel.editMessageEmbedsById(recap.messageId(), buildEmbed(guild, week)).queue(
-                success -> recaps.put(guild.getIdLong(), new Recap(recap.channelId(), recap.messageId(), week.start())),
-                error -> {
-                    LOGGER.warn("Failed to update the planning recap of guild {}", guild.getId(), error);
-                    recaps.remove(guild.getIdLong());
-                });
+        targets.targets(guild.getIdLong()).forEach(target -> refresh(guild, target));
     }
 
     public void refreshOutdated(JDA jda) {
         LocalDate currentWeekStart = currentWeek().start();
-        recaps.forEach((guildId, recap) -> {
-            Guild guild = jda.getGuildById(guildId);
-            if (guild != null && !recap.weekStart().equals(currentWeekStart)) {
-                refresh(guild);
+        recapsByChannel.forEach((channelId, recap) -> {
+            Guild guild = jda.getGuildById(recap.guildId());
+            if (guild == null || recap.weekStart().equals(currentWeekStart)) {
+                return;
             }
+            targets.targets(guild.getIdLong()).stream()
+                    .filter(target -> target.channelId() == channelId)
+                    .forEach(target -> refresh(guild, target));
         });
     }
 
-    private void post(Guild guild, TextChannel channel) {
+    private void reset(Guild guild, PlanningTarget target) {
+        TextChannel channel = guild.getTextChannelById(target.channelId());
+        if (channel == null) {
+            return;
+        }
+        recapsByChannel.remove(channel.getIdLong());
+
+        channel.getIterableHistory().takeWhileAsync(message -> true)
+                .thenCompose(messages -> CompletableFuture.allOf(
+                        channel.purgeMessages(messages).toArray(CompletableFuture[]::new)))
+                .thenRun(() -> post(guild, channel, target))
+                .exceptionally(error -> {
+                    LOGGER.error("Failed to reset the planning channel {}", channel.getId(), error);
+                    return null;
+                });
+    }
+
+    private void refresh(Guild guild, PlanningTarget target) {
+        Recap recap = recapsByChannel.get(target.channelId());
+        if (recap == null) {
+            reset(guild, target);
+            return;
+        }
+        TextChannel channel = guild.getTextChannelById(target.channelId());
+        if (channel == null) {
+            recapsByChannel.remove(target.channelId());
+            return;
+        }
+
         Week week = currentWeek();
-        channel.sendMessageEmbeds(buildEmbed(guild, week)).queue(message -> {
-            recaps.put(guild.getIdLong(), new Recap(channel.getIdLong(), message.getIdLong(), week.start()));
+        channel.editMessageEmbedsById(recap.messageId(), buildEmbed(guild, week, target)).queue(
+                success -> recapsByChannel.put(
+                        channel.getIdLong(), new Recap(guild.getIdLong(), recap.messageId(), week.start())),
+                error -> {
+                    LOGGER.warn("Failed to update the planning recap of channel {}", channel.getId(), error);
+                    recapsByChannel.remove(channel.getIdLong());
+                });
+    }
+
+    private void post(Guild guild, TextChannel channel, PlanningTarget target) {
+        Week week = currentWeek();
+        channel.sendMessageEmbeds(buildEmbed(guild, week, target)).queue(message -> {
+            recapsByChannel.put(channel.getIdLong(), new Recap(guild.getIdLong(), message.getIdLong(), week.start()));
             message.pin().queue(
                     success -> removePinNotice(channel, message.getIdLong()),
-                    error -> LOGGER.warn("Failed to pin the planning recap of guild {}", guild.getId(), error));
+                    error -> LOGGER.warn("Failed to pin the planning recap of channel {}", channel.getId(), error));
         });
     }
 
@@ -114,12 +126,6 @@ public final class PlanningRecapService {
         channel.getHistoryAfter(messageId, 1).queue(history -> history.getRetrievedHistory().stream()
                 .filter(message -> message.getType() == MessageType.CHANNEL_PINNED_ADD)
                 .forEach(message -> message.delete().queue()));
-    }
-
-    private TextChannel planningChannel(Guild guild) {
-        return settings.planningChannelId(guild.getIdLong())
-                .map(guild::getTextChannelById)
-                .orElse(null);
     }
 
     private static Week currentWeek() {
@@ -131,14 +137,16 @@ public final class PlanningRecapService {
         return new Week(monday, weekend);
     }
 
-    private MessageEmbed buildEmbed(Guild guild, Week week) {
+    private MessageEmbed buildEmbed(Guild guild, Week week, PlanningTarget target) {
         Instant from = week.start().atStartOfDay(TimeFormats.ZONE).toInstant();
         Instant until = week.start().plusDays(7).atStartOfDay(TimeFormats.ZONE).toInstant();
-        List<ScheduleEvent> events = scheduleRepository.findStartingBetween(guild.getIdLong(), from, until);
+        List<ScheduleEvent> events = scheduleRepository.findStartingBetween(guild.getIdLong(), from, until).stream()
+                .filter(target::matches)
+                .toList();
 
         EmbedBuilder embed = new EmbedBuilder()
-                .setTitle("Planning du %s au %s".formatted(
-                        TimeFormats.dayMonth(week.start()), TimeFormats.dayMonth(week.end())))
+                .setTitle("Planning du %s au %s%s".formatted(
+                        TimeFormats.dayMonth(week.start()), TimeFormats.dayMonth(week.end()), target.titleSuffix()))
                 .setColor(RECAP_COLOR)
                 .setTimestamp(Instant.now());
 

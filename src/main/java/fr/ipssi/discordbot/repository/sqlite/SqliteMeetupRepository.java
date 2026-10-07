@@ -40,6 +40,10 @@ public final class SqliteMeetupRepository implements MeetupRepository {
             INSERT INTO meetup_rsvps (meetup_id, user_id, status, answered_at) VALUES (?, ?, ?, ?)
             ON CONFLICT (meetup_id, user_id) DO UPDATE SET status = excluded.status, answered_at = excluded.answered_at
             """;
+    private static final String SELECT_REMINDER = "SELECT 1 FROM meetup_reminders WHERE meetup_id = ? AND user_id = ?";
+    private static final String INSERT_REMINDER = "INSERT OR IGNORE INTO meetup_reminders (meetup_id, user_id) VALUES (?, ?)";
+    private static final String DELETE_REMINDER = "DELETE FROM meetup_reminders WHERE meetup_id = ? AND user_id = ?";
+    private static final String SELECT_REMINDERS = "SELECT user_id FROM meetup_reminders WHERE meetup_id = ?";
     private static final String DELETE_RSVP = "DELETE FROM meetup_rsvps WHERE meetup_id = ? AND user_id = ?";
     private static final String SELECT_RSVPS = """
             SELECT user_id, status FROM meetup_rsvps WHERE meetup_id = ? ORDER BY answered_at ASC
@@ -194,6 +198,54 @@ public final class SqliteMeetupRepository implements MeetupRepository {
             return rsvps;
         } catch (SQLException e) {
             throw new RepositoryException("Failed to load answers", e);
+        }
+    }
+
+    @Override
+    public boolean hasReminder(long meetupId, long userId) {
+        try (Connection connection = database.connect();
+             PreparedStatement statement = connection.prepareStatement(SELECT_REMINDER)) {
+            statement.setLong(1, meetupId);
+            statement.setLong(2, userId);
+            try (ResultSet rows = statement.executeQuery()) {
+                return rows.next();
+            }
+        } catch (SQLException e) {
+            throw new RepositoryException("Failed to load reminder", e);
+        }
+    }
+
+    @Override
+    public void addReminder(long meetupId, long userId) {
+        database.execute(INSERT_REMINDER, "Failed to save reminder", statement -> {
+            statement.setLong(1, meetupId);
+            statement.setLong(2, userId);
+        });
+    }
+
+    @Override
+    public void removeReminder(long meetupId, long userId) {
+        database.execute(DELETE_REMINDER, "Failed to remove reminder", statement -> {
+            statement.setLong(1, meetupId);
+            statement.setLong(2, userId);
+        });
+    }
+
+    @Override
+    public List<Long> findReminders(long meetupId) {
+        try (Connection connection = database.connect();
+             PreparedStatement statement = connection.prepareStatement(SELECT_REMINDERS)) {
+            statement.setLong(1, meetupId);
+
+            List<Long> userIds = new ArrayList<>();
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    userIds.add(rows.getLong("user_id"));
+                }
+            }
+            return userIds;
+        } catch (SQLException e) {
+            throw new RepositoryException("Failed to load reminders", e);
         }
     }
 

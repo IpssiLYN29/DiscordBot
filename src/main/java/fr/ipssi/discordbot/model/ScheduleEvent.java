@@ -1,6 +1,7 @@
 package fr.ipssi.discordbot.model;
 
 import java.time.Instant;
+import java.util.Set;
 
 public record ScheduleEvent(
         long guildId,
@@ -9,6 +10,7 @@ public record ScheduleEvent(
         String teacher,
         String location,
         Instant startsAt,
-        Instant endsAt
+        Instant endsAt,
+        Set<String> promos
 ) {
 }

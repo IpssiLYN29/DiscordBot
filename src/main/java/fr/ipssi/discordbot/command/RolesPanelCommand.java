@@ -1,7 +1,7 @@
 package fr.ipssi.discordbot.command;
 
 import fr.ipssi.discordbot.listener.RoleSelectionListener;
-import fr.ipssi.discordbot.service.SettingsService;
+import fr.ipssi.discordbot.service.RoleMenuService;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
@@ -16,10 +16,12 @@ import java.util.Objects;
 
 public final class RolesPanelCommand implements Command {
 
-    private final SettingsService settings;
+    private static final int MAX_MENU_OPTIONS = 25;
 
-    public RolesPanelCommand(SettingsService settings) {
-        this.settings = settings;
+    private final RoleMenuService roleMenu;
+
+    public RolesPanelCommand(RoleMenuService roleMenu) {
+        this.roleMenu = roleMenu;
     }
 
     @Override
@@ -32,10 +34,11 @@ public final class RolesPanelCommand implements Command {
     @Override
     public void execute(SlashCommandInteractionEvent event) {
         Guild guild = event.getGuild();
-        List<SelectOption> options = settings.menuRoleIds(guild.getIdLong()).stream()
+        List<SelectOption> options = roleMenu.menuRoleIds(guild.getIdLong()).stream()
                 .map(guild::getRoleById)
                 .filter(Objects::nonNull)
                 .map(role -> SelectOption.of(role.getName(), role.getId()))
+                .limit(MAX_MENU_OPTIONS)
                 .toList();
 
         if (options.isEmpty()) {

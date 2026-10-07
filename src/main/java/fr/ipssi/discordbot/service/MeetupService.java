@@ -18,14 +18,13 @@ import org.slf4j.LoggerFactory;
 import java.awt.Color;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 public final class MeetupService {
 
     public static final String BUTTON_PREFIX = "event:";
+    public static final String REMIND_ACTION = "REMIND";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MeetupService.class);
     private static final Color OPEN_COLOR = new Color(0x57F287);
@@ -43,10 +42,13 @@ public final class MeetupService {
         boolean open = meetup.status() == MeetupStatus.OPEN;
         long epoch = meetup.startsAt().getEpochSecond();
 
+        int reminders = meetupRepository.findReminders(meetup.id()).size();
+        String footer = "Événement #" + meetup.id() + (reminders == 0 ? "" : " · " + reminders + " rappel(s)");
+
         EmbedBuilder embed = new EmbedBuilder()
                 .setTitle(statusPrefix(meetup.status()) + meetup.title())
                 .setColor(open ? OPEN_COLOR : CLOSED_COLOR)
-                .setFooter("Événement #" + meetup.id())
+                .setFooter(footer)
                 .addField("Organisateur", "<@" + meetup.createdBy() + ">", true)
                 .addField("Quand", "<t:%d:F>\n<t:%d:R>".formatted(epoch, epoch), true);
 
@@ -59,6 +61,7 @@ public final class MeetupService {
         if (meetup.status() != MeetupStatus.CANCELLED) {
             Map<RsvpStatus, List<Long>> rsvps = meetupRepository.findRsvps(meetup.id());
             embed.addField(title("Je peux", rsvps.get(RsvpStatus.YES)), mentions(rsvps.get(RsvpStatus.YES)), false);
+            embed.addField(title("Peut-être", rsvps.get(RsvpStatus.MAYBE)), mentions(rsvps.get(RsvpStatus.MAYBE)), false);
             embed.addField(title("Je ne peux pas", rsvps.get(RsvpStatus.NO)), mentions(rsvps.get(RsvpStatus.NO)), false);
         }
         return embed.build();
@@ -68,7 +71,9 @@ public final class MeetupService {
         String prefix = BUTTON_PREFIX + meetup.id() + ":";
         return List.of(ActionRow.of(
                 Button.success(prefix + RsvpStatus.YES.name(), "Je peux"),
-                Button.danger(prefix + RsvpStatus.NO.name(), "Je peux pas")));
+                Button.primary(prefix + RsvpStatus.MAYBE.name(), "Peut-être"),
+                Button.danger(prefix + RsvpStatus.NO.name(), "Je peux pas"),
+                Button.secondary(prefix + REMIND_ACTION, "Me rappeler")));
     }
 
     public void finish(JDA jda, Meetup meetup, MeetupStatus status) {
@@ -103,9 +108,11 @@ public final class MeetupService {
             return;
         }
 
-        Set<Long> attendees = new LinkedHashSet<>();
-        attendees.add(meetup.createdBy());
-        attendees.addAll(meetupRepository.findRsvps(meetup.id()).get(RsvpStatus.YES));
+        List<Long> subscribers = meetupRepository.findReminders(meetup.id());
+        if (subscribers.isEmpty()) {
+            meetupRepository.markReminded(meetup.id());
+            return;
+        }
 
         String location = meetup.location().isBlank() ? "" : " · " + meetup.location();
         String content = "Rappel : **%s** commence <t:%d:R> (%s)%s\n%s".formatted(
@@ -113,7 +120,7 @@ public final class MeetupService {
                 meetup.startsAt().getEpochSecond(),
                 TimeFormats.time(meetup.startsAt()),
                 location,
-                mentions(List.copyOf(attendees)));
+                mentions(subscribers));
 
         channel.sendMessage(content)
                 .setMessageReference(meetup.messageId())

@@ -34,4 +34,12 @@ public interface MeetupRepository {
     void removeRsvp(long meetupId, long userId);
 
     Map<RsvpStatus, List<Long>> findRsvps(long meetupId);
+
+    boolean hasReminder(long meetupId, long userId);
+
+    void addReminder(long meetupId, long userId);
+
+    void removeReminder(long meetupId, long userId);
+
+    List<Long> findReminders(long meetupId);
 }

@@ -12,13 +12,19 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public final class IcsParser {
 
     private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss");
     private static final String TEACHER_SEPARATOR = " - ";
+    private static final Pattern PROMO_TAG = Pattern.compile("\\[([A-Za-z0-9_-]+)]");
 
     private record Property(String parameters, String value) {
     }
@@ -84,8 +90,20 @@ public final class IcsParser {
         String title = separator > 0 ? text.substring(0, separator).trim() : text;
         String teacher = separator > 0 ? text.substring(separator + TEACHER_SEPARATOR.length()).trim() : "";
         String location = Optional.ofNullable(properties.get("LOCATION")).map(p -> unescape(p.value())).orElse("");
+        Set<String> promos = Optional.ofNullable(properties.get("DESCRIPTION"))
+                .map(p -> parsePromos(unescape(p.value())))
+                .orElseGet(TreeSet::new);
 
-        return Optional.of(new ScheduleEvent(guildId, uid.value(), title, teacher, location, start.get(), end));
+        return Optional.of(new ScheduleEvent(guildId, uid.value(), title, teacher, location, start.get(), end, promos));
+    }
+
+    private static Set<String> parsePromos(String description) {
+        Set<String> promos = new TreeSet<>();
+        Matcher matcher = PROMO_TAG.matcher(description);
+        while (matcher.find()) {
+            promos.add(matcher.group(1).toUpperCase(Locale.ROOT));
+        }
+        return promos;
     }
 
     private static Optional<Instant> toInstant(Property property) {

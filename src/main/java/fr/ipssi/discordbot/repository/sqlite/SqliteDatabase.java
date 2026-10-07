@@ -51,6 +51,7 @@ public final class SqliteDatabase {
                 start_at INTEGER NOT NULL,
                 end_at INTEGER NOT NULL,
                 reminded INTEGER NOT NULL DEFAULT 0,
+                promos TEXT NOT NULL DEFAULT '',
                 PRIMARY KEY (guild_id, uid)
             )
             """, """
@@ -104,6 +105,34 @@ public final class SqliteDatabase {
                 created_by INTEGER NOT NULL,
                 created_at INTEGER NOT NULL
             )
+            """, """
+            CREATE TABLE IF NOT EXISTS promos (
+                guild_id INTEGER NOT NULL,
+                code TEXT NOT NULL COLLATE NOCASE,
+                channel_id INTEGER NOT NULL,
+                role_id INTEGER NOT NULL,
+                PRIMARY KEY (guild_id, code)
+            )
+            """, """
+            CREATE TABLE IF NOT EXISTS subjects (
+                guild_id INTEGER NOT NULL,
+                name TEXT NOT NULL COLLATE NOCASE,
+                role_id INTEGER NOT NULL,
+                PRIMARY KEY (guild_id, name)
+            )
+            """, """
+            CREATE TABLE IF NOT EXISTS help_questions (
+                thread_id INTEGER PRIMARY KEY,
+                guild_id INTEGER NOT NULL,
+                asker_id INTEGER NOT NULL,
+                resolved INTEGER NOT NULL DEFAULT 0
+            )
+            """, """
+            CREATE TABLE IF NOT EXISTS meetup_reminders (
+                meetup_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                PRIMARY KEY (meetup_id, user_id)
+            )
             """);
 
     private final String url;
@@ -141,6 +170,7 @@ public final class SqliteDatabase {
                 statement.execute(definition);
             }
             addColumnIfMissing(statement, "meetups", "reminded", "INTEGER NOT NULL DEFAULT 0");
+            addColumnIfMissing(statement, "schedule_events", "promos", "TEXT NOT NULL DEFAULT ''");
         } catch (SQLException e) {
             throw new RepositoryException("Failed to initialize the database", e);
         }
