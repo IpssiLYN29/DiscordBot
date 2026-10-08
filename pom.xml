@@ -6,7 +6,7 @@
 
     <groupId>fr.ipssi</groupId>
     <artifactId>discord-bot</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.1</version>
     <name>IPSSI Lyon Discord Bot</name>
 
     <properties>

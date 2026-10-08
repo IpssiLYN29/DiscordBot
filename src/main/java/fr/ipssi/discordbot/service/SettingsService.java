@@ -3,10 +3,8 @@ package fr.ipssi.discordbot.service;
 import fr.ipssi.discordbot.model.SettingKey;
 import fr.ipssi.discordbot.repository.SettingsRepository;
 
-import java.util.Arrays;
-import java.util.LinkedHashSet;
-import java.util.Optional;
-import java.util.Set;
+import java.lang.reflect.Array;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public final class SettingsService {
