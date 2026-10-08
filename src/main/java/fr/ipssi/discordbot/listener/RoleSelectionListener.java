@@ -41,11 +41,18 @@ public final class RoleSelectionListener extends ListenerAdapter {
                 .toList();
 
         List<Role> toAdd = selectableRoles.stream().filter(role -> selectedIds.contains(role.getId())).toList();
-        List<Role> toRemove = selectableRoles.stream().filter(role -> !selectedIds.contains(role.getId())).toList();
 
-        guild.modifyMemberRoles(member, toAdd, toRemove).queue(
+        // TODO: remove role when role is re-selected
+        // List<Role> toRemove = selectableRoles.stream().filter(role -> selectedIds.contains(role.getId())).toList();
+        toAdd.forEach(role -> {
+            guild.addRoleToMember(member, role).queue(
+                    success -> event.reply("Tes rôles ont été mis à jour.").setEphemeral(true).queue(),
+                    error -> event.reply("Impossible de modifier tes rôles, préviens un admin.").setEphemeral(true).queue()
+            );
+        });
+        /*guild.modifyMemberRoles(member, toAdd).queue(
                 success -> event.reply("Tes rôles ont été mis à jour.").setEphemeral(true).queue(),
                 error -> event.reply("Impossible de modifier tes rôles, préviens un admin.").setEphemeral(true).queue()
-        );
+        );*/
     }
 }
