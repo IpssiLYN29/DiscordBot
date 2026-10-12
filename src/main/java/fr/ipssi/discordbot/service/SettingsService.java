@@ -10,6 +10,9 @@ import java.util.stream.Collectors;
 public final class SettingsService {
 
     private static final String SEPARATOR = ",";
+    private static final long DEFAULT_DELEGUE_ROLE_ID = 1558036770782847007L;
+    private static final long DEFAULT_PROMO_LYN_ROLE_ID = 1556707717601697863L;
+    private static final long DEFAULT_PROMO_BDX_ROLE_ID = 1557018331842617376L;
 
     private final SettingsRepository repository;
 
@@ -43,6 +46,18 @@ public final class SettingsService {
 
     public Optional<Long> memberRoleId(long guildId) {
         return findId(guildId, SettingKey.MEMBER_ROLE);
+    }
+
+    public long delegueRoleId(long guildId) {
+        return findId(guildId, SettingKey.DELEGUE_ROLE).orElse(DEFAULT_DELEGUE_ROLE_ID);
+    }
+
+    public long promoLynRoleId(long guildId) {
+        return findId(guildId, SettingKey.PROMO_LYN_ROLE).orElse(DEFAULT_PROMO_LYN_ROLE_ID);
+    }
+
+    public long promoBdxRoleId(long guildId) {
+        return findId(guildId, SettingKey.PROMO_BDX_ROLE).orElse(DEFAULT_PROMO_BDX_ROLE_ID);
     }
 
     public Set<Long> selectableRoleIds(long guildId) {

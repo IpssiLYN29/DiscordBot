@@ -23,6 +23,7 @@ On PowerShell: `$env:DISCORD_TOKEN = "..."` before `java -jar`.
 | `DEV_MODE` | no | Set to `1` to announce the next class 10 seconds after startup, as if it started in 30 minutes (demo) |
 
 5. On the server, an administrator configures the bot with `/config` (welcome channel, logs channel, member role, selectable roles), then posts the panels with `/rules-panel` and `/roles-panel`.
+   Configure the roles used by `/delegue` with `/config delegue-role`, `/config promo-lyn-role` and `/config promo-bdx-role`. These settings are saved per server and apply immediately; the previous role IDs are used until changed.
 
 ## Class reminders
 

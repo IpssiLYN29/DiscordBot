@@ -74,6 +74,12 @@ public final class ConfigCommand implements Command {
                                         .setMaxLength(40)),
                         new SubcommandData("member-role", "Set the role given when the rules are accepted")
                                 .addOption(OptionType.ROLE, "role", "Role to give", true),
+                        new SubcommandData("delegue-role", "Set the delegate role for /delegue")
+                                .addOption(OptionType.ROLE, "role", "Delegate role", true),
+                        new SubcommandData("promo-lyn-role", "Set the LYN promo role used by /delegue")
+                                .addOption(OptionType.ROLE, "role", "LYN promo role", true),
+                        new SubcommandData("promo-bdx-role", "Set the BDX promo role used by /delegue")
+                                .addOption(OptionType.ROLE, "role", "BDX promo role", true),
                         new SubcommandData("add-selectable-role", "Add a role to the selection menu")
                                 .addOption(OptionType.ROLE, "role", "Role members can pick", true),
                         new SubcommandData("remove-selectable-role", "Remove a role from the selection menu")
@@ -103,6 +109,9 @@ public final class ConfigCommand implements Command {
                 settings.setId(guildId, SettingKey.MEMBER_ROLE, event.getOption("role").getAsRole().getIdLong());
                 reply(event, "Rôle membre mis à jour.");
             }
+            case "delegue-role" -> saveRole(event, guildId, SettingKey.DELEGUE_ROLE, "Rôle délégué mis à jour.");
+            case "promo-lyn-role" -> saveRole(event, guildId, SettingKey.PROMO_LYN_ROLE, "Rôle de promo LYN mis à jour.");
+            case "promo-bdx-role" -> saveRole(event, guildId, SettingKey.PROMO_BDX_ROLE, "Rôle de promo BDX mis à jour.");
             case "add-selectable-role" -> {
                 settings.addSelectableRole(guildId, event.getOption("role").getAsRole().getIdLong());
                 reply(event, "Rôle ajouté au menu de sélection.");
@@ -119,6 +128,11 @@ public final class ConfigCommand implements Command {
     private void saveChannel(SlashCommandInteractionEvent event, long guildId, SettingKey key) {
         settings.setId(guildId, key, event.getOption("channel").getAsChannel().getIdLong());
         reply(event, "Salon mis à jour.");
+    }
+
+    private void saveRole(SlashCommandInteractionEvent event, long guildId, SettingKey key, String confirmation) {
+        settings.setId(guildId, key, event.getOption("role").getAsRole().getIdLong());
+        reply(event, confirmation);
     }
 
     private void setPromo(SlashCommandInteractionEvent event, long guildId) {
@@ -171,6 +185,9 @@ public final class ConfigCommand implements Command {
                 Rôle du planning (sans promos) : %s
                 Matières : %s
                 Rôle membre : %s
+                Rôle délégué : <@&%d>
+                Rôle promo LYN : <@&%d>
+                Rôle promo BDX : <@&%d>
                 Rôles sélectionnables : %s"""
                 .formatted(
                         mention(settings.welcomeChannelId(guildId), "#"),
@@ -182,6 +199,9 @@ public final class ConfigCommand implements Command {
                         mention(settings.planningRoleId(guildId), "@&"),
                         subjects.isEmpty() ? NOT_SET : subjects,
                         mention(settings.memberRoleId(guildId), "@&"),
+                        settings.delegueRoleId(guildId),
+                        settings.promoLynRoleId(guildId),
+                        settings.promoBdxRoleId(guildId),
                         selectableRoles.isEmpty() ? NOT_SET : selectableRoles);
     }
 
