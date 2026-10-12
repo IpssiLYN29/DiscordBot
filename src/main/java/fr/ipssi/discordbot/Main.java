@@ -1,24 +1,6 @@
 package fr.ipssi.discordbot;
 
-import fr.ipssi.discordbot.command.AnnounceCommand;
-import fr.ipssi.discordbot.command.ClearCommand;
-import fr.ipssi.discordbot.command.CommandManager;
-import fr.ipssi.discordbot.command.ConfigCommand;
-import fr.ipssi.discordbot.command.DeadlineCommand;
-import fr.ipssi.discordbot.command.DeadlinesCommand;
-import fr.ipssi.discordbot.command.MeetupCommand;
-import fr.ipssi.discordbot.command.MuteCommand;
-import fr.ipssi.discordbot.command.PingCommand;
-import fr.ipssi.discordbot.command.QuestionCommand;
-import fr.ipssi.discordbot.command.ResolvedCommand;
-import fr.ipssi.discordbot.command.PlanningCommand;
-import fr.ipssi.discordbot.command.PollCommand;
-import fr.ipssi.discordbot.command.ResourceCommand;
-import fr.ipssi.discordbot.command.RolesPanelCommand;
-import fr.ipssi.discordbot.command.RulesPanelCommand;
-import fr.ipssi.discordbot.command.UnmuteCommand;
-import fr.ipssi.discordbot.command.WarnCommand;
-import fr.ipssi.discordbot.command.WarnsCommand;
+import fr.ipssi.discordbot.command.*;
 import fr.ipssi.discordbot.listener.MeetupListener;
 import fr.ipssi.discordbot.listener.MemberListener;
 import fr.ipssi.discordbot.listener.PollListener;
@@ -60,6 +42,8 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.requests.GatewayIntent;
+import net.dv8tion.jda.api.utils.ChunkingFilter;
+import net.dv8tion.jda.api.utils.MemberCachePolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -99,6 +83,7 @@ public final class Main {
         MeetupService meetupService = new MeetupService(meetupRepository);
 
         CommandManager commandManager = new CommandManager();
+        DelegueCommand delegueCommand = new DelegueCommand();
         commandManager.register(new PingCommand());
         commandManager.register(new ConfigCommand(settings, promoRepository, subjectRepository));
         commandManager.register(new QuestionCommand(settings, subjectRepository, helpRepository));
@@ -117,8 +102,11 @@ public final class Main {
         commandManager.register(new AnnounceCommand());
         commandManager.register(new RulesPanelCommand());
         commandManager.register(new RolesPanelCommand(roleMenu));
+        commandManager.register(delegueCommand);
 
         JDA jda = JDABuilder.createLight(config.token(), GatewayIntent.GUILD_MEMBERS)
+                .setChunkingFilter(ChunkingFilter.ALL)
+                .setMemberCachePolicy(MemberCachePolicy.ALL)
                 .setActivity(Activity.watching("IPSSI Lyon"))
                 .addEventListeners(
                         commandManager,
@@ -126,7 +114,8 @@ public final class Main {
                         new RulesListener(settings),
                         new RoleSelectionListener(roleMenu),
                         new PollListener(pollRepository, pollService),
-                        new MeetupListener(meetupRepository, meetupService))
+                        new MeetupListener(meetupRepository, meetupService),
+                        delegueCommand)
                 .build()
                 .awaitReady();
 
