@@ -3,6 +3,7 @@ package fr.ipssi.discordbot;
 import fr.ipssi.discordbot.command.*;
 import fr.ipssi.discordbot.listener.MeetupListener;
 import fr.ipssi.discordbot.listener.MemberListener;
+import fr.ipssi.discordbot.listener.DelegueListener;
 import fr.ipssi.discordbot.listener.PollListener;
 import fr.ipssi.discordbot.listener.RoleSelectionListener;
 import fr.ipssi.discordbot.listener.RulesListener;
@@ -83,7 +84,6 @@ public final class Main {
         MeetupService meetupService = new MeetupService(meetupRepository);
 
         CommandManager commandManager = new CommandManager();
-        DelegueCommand delegueCommand = new DelegueCommand();
         commandManager.register(new PingCommand());
         commandManager.register(new ConfigCommand(settings, promoRepository, subjectRepository));
         commandManager.register(new QuestionCommand(settings, subjectRepository, helpRepository));
@@ -102,7 +102,10 @@ public final class Main {
         commandManager.register(new AnnounceCommand());
         commandManager.register(new RulesPanelCommand());
         commandManager.register(new RolesPanelCommand(roleMenu));
-        commandManager.register(delegueCommand);
+        commandManager.register(new DelegueCommand(
+                config.delegueRoleId(),
+                config.promoLynRoleId(),
+                config.promoBdxRoleId()));
 
         JDA jda = JDABuilder.createLight(config.token(), GatewayIntent.GUILD_MEMBERS)
                 .setChunkingFilter(ChunkingFilter.ALL)
@@ -115,7 +118,7 @@ public final class Main {
                         new RoleSelectionListener(roleMenu),
                         new PollListener(pollRepository, pollService),
                         new MeetupListener(meetupRepository, meetupService),
-                        delegueCommand)
+                        new DelegueListener())
                 .build()
                 .awaitReady();
 
