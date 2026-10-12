@@ -11,17 +11,14 @@ import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 import net.dv8tion.jda.api.interactions.components.text.TextInput;
 import net.dv8tion.jda.api.interactions.components.text.TextInputStyle;
 import net.dv8tion.jda.api.interactions.modals.Modal;
+import fr.ipssi.discordbot.service.SettingsService;
 
 public final class DelegueCommand implements Command {
 
-    private final long delegueRoleId;
-    private final long promoLynRoleId;
-    private final long promoBdxRoleId;
+    private final SettingsService settings;
 
-    public DelegueCommand(long delegueRoleId, long promoLynRoleId, long promoBdxRoleId) {
-        this.delegueRoleId = delegueRoleId;
-        this.promoLynRoleId = promoLynRoleId;
-        this.promoBdxRoleId = promoBdxRoleId;
+    public DelegueCommand(SettingsService settings) {
+        this.settings = settings;
     }
 
     @Override
@@ -49,7 +46,8 @@ public final class DelegueCommand implements Command {
 
         long campusRoleId = requester.getRoles().stream()
                 .map(Role::getIdLong)
-                .filter(id -> id == promoLynRoleId || id == promoBdxRoleId)
+                .filter(id -> id == settings.promoLynRoleId(event.getGuild().getIdLong())
+                        || id == settings.promoBdxRoleId(event.getGuild().getIdLong()))
                 .findFirst()
                 .orElse(0L);
 
@@ -59,7 +57,7 @@ public final class DelegueCommand implements Command {
         }
 
         Member delegue = event.getGuild().getMembers().stream()
-                .filter(m -> m.getRoles().stream().anyMatch(r -> r.getIdLong() == delegueRoleId))
+                .filter(m -> m.getRoles().stream().anyMatch(r -> r.getIdLong() == settings.delegueRoleId(event.getGuild().getIdLong())))
                 .filter(m -> m.getRoles().stream().anyMatch(r -> r.getIdLong() == campusRoleId))
                 .findFirst()
                 .orElse(null);

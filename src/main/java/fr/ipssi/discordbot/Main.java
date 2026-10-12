@@ -102,10 +102,7 @@ public final class Main {
         commandManager.register(new AnnounceCommand());
         commandManager.register(new RulesPanelCommand());
         commandManager.register(new RolesPanelCommand(roleMenu));
-        commandManager.register(new DelegueCommand(
-                config.delegueRoleId(),
-                config.promoLynRoleId(),
-                config.promoBdxRoleId()));
+        commandManager.register(new DelegueCommand(settings));
 
         JDA jda = JDABuilder.createLight(config.token(), GatewayIntent.GUILD_MEMBERS)
                 .setChunkingFilter(ChunkingFilter.ALL)

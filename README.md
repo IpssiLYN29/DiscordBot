@@ -21,11 +21,9 @@ On PowerShell: `$env:DISCORD_TOKEN = "..."` before `java -jar`.
 | `DISCORD_TOKEN` | yes | Bot token |
 | `DATABASE_FILE` | no | SQLite file path (default `data/bot.db`) |
 | `DEV_MODE` | no | Set to `1` to announce the next class 10 seconds after startup, as if it started in 30 minutes (demo) |
-| `DELEGUE_ROLE_ID` | no | Discord role ID used to find the delegate (default: `1558036770782847007`) |
-| `PROMO_LYN_ROLE_ID` | no | Discord role ID used to identify members of promo LYN (default: `1556707717601697863`) |
-| `PROMO_BDX_ROLE_ID` | no | Discord role ID used to identify members of promo BDX (default: `1557018331842617376`) |
 
 5. On the server, an administrator configures the bot with `/config` (welcome channel, logs channel, member role, selectable roles), then posts the panels with `/rules-panel` and `/roles-panel`.
+   Configure the roles used by `/delegue` with `/config delegue-role`, `/config promo-lyn-role` and `/config promo-bdx-role`. These settings are saved per server and apply immediately; the previous role IDs are used until changed.
 
 ## Class reminders
 
