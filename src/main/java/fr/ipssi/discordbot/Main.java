@@ -55,7 +55,8 @@ public final class Main {
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
     private static final Duration REMINDER_CHECK_PERIOD = Duration.ofMinutes(1);
     private static final Duration DEV_DEMO_DELAY = Duration.ofSeconds(10);
-
+    private static CommandManager commandManager = null;
+    private static JDA jda;
     private Main() {
     }
 
@@ -83,7 +84,7 @@ public final class Main {
         PollService pollService = new PollService(pollRepository);
         MeetupService meetupService = new MeetupService(meetupRepository);
 
-        CommandManager commandManager = new CommandManager();
+        commandManager = new CommandManager();
         commandManager.register(new PingCommand());
         commandManager.register(new ConfigCommand(settings, promoRepository, subjectRepository));
         commandManager.register(new QuestionCommand(settings, subjectRepository, helpRepository));
@@ -103,8 +104,9 @@ public final class Main {
         commandManager.register(new RulesPanelCommand());
         commandManager.register(new RolesPanelCommand(roleMenu));
         commandManager.register(new DelegueCommand(settings));
+        commandManager.register(new RefreshCommand());
 
-        JDA jda = JDABuilder.createLight(config.token(), GatewayIntent.GUILD_MEMBERS)
+         jda = JDABuilder.createLight(config.token(), GatewayIntent.GUILD_MEMBERS)
                 .setChunkingFilter(ChunkingFilter.ALL)
                 .setMemberCachePolicy(MemberCachePolicy.ALL)
                 .setActivity(Activity.watching("IPSSI Lyon"))
@@ -144,7 +146,17 @@ public final class Main {
 
 
     }
+
     public static Logger getLogger() {
         return LOGGER;
+    }
+
+
+    public static CommandManager getCommandManager() {
+        return commandManager;
+    }
+
+    public static JDA getJda() {
+        return jda;
     }
 }
