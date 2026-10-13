@@ -8,6 +8,7 @@ import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionE
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -40,19 +41,23 @@ public final class RoleSelectionListener extends ListenerAdapter {
                 .filter(Objects::nonNull)
                 .toList();
 
-        List<Role> toAdd = selectableRoles.stream().filter(role -> selectedIds.contains(role.getId())).toList();
 
-        // TODO: remove role when role is re-selected
-        // List<Role> toRemove = selectableRoles.stream().filter(role -> selectedIds.contains(role.getId())).toList();
-        toAdd.forEach(role -> {
-            guild.addRoleToMember(member, role).queue(
-                    success -> event.reply("Tes rôles ont été mis à jour.").setEphemeral(true).queue(),
-                    error -> event.reply("Impossible de modifier tes rôles, préviens un admin.").setEphemeral(true).queue()
-            );
+        List<Role> toModify = selectableRoles.stream().filter(role -> selectedIds.contains(role.getId())).toList();
+
+        List<Role> toAdd = new ArrayList<>();
+        List<Role> toRemove = new ArrayList<>();
+
+        toModify.forEach(role -> {
+            if (member.getRoles().contains(role)) {
+                toRemove.add(role);
+            } else {
+                toAdd.add(role);
+            }
         });
-        /*guild.modifyMemberRoles(member, toAdd).queue(
+
+        guild.modifyMemberRoles(member, toAdd, toRemove).queue(
                 success -> event.reply("Tes rôles ont été mis à jour.").setEphemeral(true).queue(),
                 error -> event.reply("Impossible de modifier tes rôles, préviens un admin.").setEphemeral(true).queue()
-        );*/
+        );
     }
 }
